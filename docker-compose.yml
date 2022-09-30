@@ -1,0 +1,47 @@
+version: '3.4'
+services:
+  traefik:
+    image: "traefik:2.5.3"
+    container_name: traefik
+    restart: always
+    command:
+      # - "--accesslog=true"
+      # - "--accesslog.fields.defaultmode=keep"
+      # - "--accesslog.fields.names.ClientAddr=keep"
+      # - "--accesslog.fields.headers.defaultmode=keep"
+      - "--api=true"
+      - "--providers.docker=true"
+      - "--providers.docker.network=${COMPOSE_PROJECT_NAME}_web"
+      - "--providers.docker.watch=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      - "--certificatesresolvers.traefik.acme.email=${ACME_EMAIL:?err}"
+      - "--certificatesresolvers.traefik.acme.storage=/lets_encrypt/acme.json"
+      - "--certificatesresolvers.traefik.acme.httpchallenge.entrypoint=web"
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.api.rule=Host(`traefik.${DOMAIN:?err}`)
+      - traefik.http.routers.api.service=api@internal
+      - traefik.http.routers.api.middlewares=ip-white,auth
+      - traefik.http.middlewares.auth.basicauth.users=${HT_PASSWD:?err}
+      - traefik.http.middlewares.ip-white.ipwhitelist.sourcerange=${IP_FILTER:-0.0.0.0/0}
+      - traefik.http.routers.api.tls.certresolver=traefik
+      - traefik.http.routers.api.tls=true
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - lets_encrypt:/lets_encrypt
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - web
+
+networks:
+  web:
+    driver: bridge
+
+volumes:
+  lets_encrypt:

@@ -1,0 +1,28 @@
+version: '3.4'
+services:
+  traefik:
+    image: "traefik:2.5.3"
+    container_name: traefik
+    restart: unless-stopped
+    command:
+      - "--api=true"
+      - "--providers.docker=true"
+      - "--providers.docker.network=${COMPOSE_PROJECT_NAME}_web"
+      - "--providers.docker.watch=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.api.rule=Host(`traefik.${DOMAIN:?err}`)
+      - traefik.http.routers.api.service=api@internal
+    ports:
+      - 80:80
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - web
+      - local
+
+networks:
+  web:
+    driver: bridge
